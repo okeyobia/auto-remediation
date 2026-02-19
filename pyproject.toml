@@ -1,0 +1,29 @@
+[project]
+name = "aiops-auto-remediation"
+version = "0.1.0"
+description = "Automated remediation system for AIOps monitoring and incident response"
+requires-python = ">=3.11"
+dependencies = [
+    "flask>=3.0.0",
+    "docker>=7.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+select = ["E", "F", "W"]

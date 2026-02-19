@@ -50,6 +50,7 @@ This project implements an automated incident response platform that:
 ```
 .
 ├── README.md                     # This file
+├── pyproject.toml                # Python project configuration (uv)
 ├── docker-compose.yml            # Docker Compose configuration
 ├── prometheus.yml                # Prometheus scrape and alert config
 ├── alertmanager.yml              # AlertManager routing config
@@ -92,6 +93,115 @@ This project implements an automated incident response platform that:
 | AlertManager | http://localhost:9093 | Alert management UI |
 | Webhook | http://localhost:5000/alert | Alert receiver endpoint |
 
+## 🔧 Running with `uv` (Local Development)
+
+The project includes `uv` configuration for local development and testing of the webhook service independently. **Note:** `uv` is for local development only; Docker Compose uses standard pip for reliable container builds.
+
+### Prerequisites
+- Python 3.11+
+- [uv](https://github.com/astral-sh/uv) installed
+
+### Local Webhook Development
+
+1. **Install dependencies using uv:**
+   ```bash
+   uv sync
+   ```
+
+2. **Run the webhook locally:**
+   ```bash
+   uv run python webhook/app.py
+   ```
+   The webhook will be available at `http://localhost:5000`
+
+3. **Run with watch mode (auto-restart on changes):**
+   ```bash
+   uv run --with watchfiles python -m watchfiles webhook.app:app --watch webhook
+   ```
+
+### Development Dependencies
+
+Install optional development tools:
+```bash
+uv sync --extra dev
+```
+
+This includes:
+- **pytest**: Unit testing
+- **black**: Code formatting
+- **ruff**: Linting
+
+### Running Tests
+
+```bash
+uv run pytest
+```
+
+### Code Formatting
+
+```bash
+# Format code
+uv run black webhook/
+
+# Check with ruff
+uv run ruff check webhook/
+```
+
+## 📋 Deployment Options
+
+### Option 1: Full Stack with Docker Compose (Recommended for Production)
+
+Best for complete monitoring setup with Prometheus, AlertManager, Nginx, and webhook all containerized.
+
+```bash
+docker-compose up -d
+```
+
+**Advantages:**
+- ✅ Complete isolated environment
+- ✅ Reproducible across machines
+- ✅ All services properly networked
+- ✅ No local dependencies needed
+- ✅ Easy to deploy to cloud/orchestration platforms
+
+**Use case:** Production deployments, complete monitoring stack
+
+### Option 2: Local Development with `uv` + Partial Docker Stack
+
+Run webhook locally with `uv` while other services run in Docker.
+
+```bash
+# Start only the monitoring stack (Prometheus, AlertManager, Nginx)
+docker-compose up -d prometheus alertmanager nginx nginx_exporter
+
+# In another terminal, run webhook locally
+uv run python webhook/app.py
+```
+
+**Advantages:**
+- ✅ Fast feedback loop for webhook development
+- ✅ Easy debugging with local Python stack
+- ✅ Hot reload capability
+- ✅ IDE integration and debugging tools
+
+**Use case:** Webhook development, testing alert logic locally
+
+### Option 3: Container with `uv` (Updated Dockerfile)
+
+Dockerfile uses standard pip for reliable container builds.
+
+```bash
+docker-compose build webhook
+docker-compose up -d
+```
+
+**Advantages:**
+- ✅ Container isolation
+- ✅ Reproducible builds
+- ✅ No local dependencies needed
+
+**Use case:** CI/CD pipelines, container registries
+
 ## 🔧 Configuration
 
 ### Alert Rules (`alert_rules.yml`)
@@ -111,7 +221,7 @@ NginxDown:
 Routes firing alerts to the webhook service:
 ```yaml
 webhook_configs:
-  - url: 'http://localhost:5000/alerts'
+  - url: 'http://localhost:5000/alert'
 ```
 
 ### Prometheus (`prometheus.yml`)
@@ -127,7 +237,27 @@ Receives alerts and triggers automated remediation:
 - Receives POST requests at `/alert` endpoint
 - Restarts `nginx_app` container when firing alerts are received
 
-## 📊 How It Works
+## � Dependencies
+
+### Python Dependencies
+
+Managed in `pyproject.toml`:
+
+- **flask** (>= 3.0.0): Web framework for webhook receiver
+- **docker** (>= 7.0.0): Docker SDK for Python to control containers
+
+### Optional Development Dependencies
+
+- **pytest**: Unit testing framework
+- **black**: Code formatter
+- **ruff**: Fast Python linter
+
+Install all dev dependencies with `uv`:
+```bash
+uv sync --extra dev
+```
+
+## �📊 How It Works
 
 1. **Metrics Collection**: Nginx Exporter exposes nginx metrics
 2. **Evaluation**: Prometheus scrapes metrics and evaluates alert rules every 15 seconds
