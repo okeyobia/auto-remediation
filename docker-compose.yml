@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+
+  nginx:
+    image: nginx
+    container_name: nginx_app
+    ports:
+      - "8080:80"
+
+  nginx_exporter:
+    image: nginx/nginx-prometheus-exporter
+    container_name: nginx_exporter
+    command:
+      - -nginx.scrape-uri=http://nginx_app/stub_status
+    ports:
+      - "9113:9113"
+    depends_on:
+      - nginx
+
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./alert_rules.yml:/etc/prometheus/alert_rules.yml
+    ports:
+      - "9090:9090"
+
+  alertmanager:
+    image: prom/alertmanager
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    ports:
+      - "9093:9093"
+
+  webhook:
+    build: ./webhook
+    container_name: remediation_webhook
+    ports:
+      - "5000:5000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock

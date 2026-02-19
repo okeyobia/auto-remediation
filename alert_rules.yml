@@ -1,0 +1,10 @@
+groups:
+  - name: nginx_alerts
+    rules:
+      - alert: NginxDown
+        expr: up{job="nginx"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          description: "Nginx container is down"
