@@ -55,6 +55,9 @@ This project implements an automated incident response platform that:
 ├── prometheus.yml                # Prometheus scrape and alert config
 ├── alertmanager.yml              # AlertManager routing config
 ├── alert_rules.yml               # Alert rules definitions
+├── nginx/
+│   ├── Dockerfile                # Custom Nginx with stub_status enabled
+│   └── nginx.conf                # Nginx configuration
 └── webhook/
     ├── app.py                    # Flask webhook receiver and remediation logic
     └── Dockerfile                # Webhook service container image
@@ -204,6 +207,13 @@ docker-compose up -d
 
 ## 🔧 Configuration
 
+### Nginx Configuration (`nginx/nginx.conf`)
+
+Custom Nginx configuration with `stub_status` module enabled to expose metrics:
+- Exposes `/stub_status` endpoint for Prometheus scraping
+- Required for Nginx Prometheus Exporter to collect metrics
+- Listens on port 80 with standard HTTP serving
+
 ### Alert Rules (`alert_rules.yml`)
 
 Defines monitoring thresholds. Default rule:
@@ -211,24 +221,27 @@ Defines monitoring thresholds. Default rule:
 
 ```yaml
 NginxDown:
-  condition: up{job="nginx"} == 0
+  condition: nginx_up == 0
   duration: 30s
   severity: critical
 ```
 
+Note: Uses `nginx_up` metric exported by Nginx Prometheus Exporter, not the generic `up` metric.
+
 ### AlertManager (`alertmanager.yml`)
 
-Routes firing alerts to the webhook service:
+Routes firing alerts to the webhook service via Docker container hostname:
 ```yaml
 webhook_configs:
-  - url: 'http://localhost:5000/alert'
+  - url: 'http://remediation_webhook:5000/alert'
 ```
 
 ### Prometheus (`prometheus.yml`)
 
-Configures metrics scraping:
+Configures metrics scraping and alert routing to AlertManager:
 - **Scrape Interval**: 15 seconds
-- **Target**: Nginx Exporter (port 9113)
+- **Scrape Target**: Nginx Exporter (port 9113)
+- **Alerting**: Routes alerts to AlertManager (port 9093)
 
 ### Webhook Service (`webhook/app.py`)
 

@@ -1,11 +1,8 @@
-global:
-  resolve_timeout: 5m
-
 route:
   receiver: 'webhook'
 
 receivers:
   - name: 'webhook'
     webhook_configs:
-      - url: 'http://localhost:5000/alert'
+      - url: 'http://remediation_webhook:5000/alert'
         send_resolved: true

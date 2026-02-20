@@ -3,7 +3,7 @@ version: '3.8'
 services:
 
   nginx:
-    image: nginx
+    build: ./nginx
     container_name: nginx_app
     ports:
       - "8080:80"

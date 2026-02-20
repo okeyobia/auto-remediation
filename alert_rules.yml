@@ -2,7 +2,7 @@ groups:
   - name: nginx_alerts
     rules:
       - alert: NginxDown
-        expr: up{job="nginx"} == 0
+        expr: nginx_up == 0
         for: 30s
         labels:
           severity: critical
