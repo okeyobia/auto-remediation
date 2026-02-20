@@ -36,7 +36,7 @@ spec:
           mountPath: /var/lib/grafana
         - name: grafana-datasources
           mountPath: /etc/grafana/provisioning/datasources
-        - name: grafana-dashboards
+        - name: nginx-dashboard
           mountPath: /etc/grafana/provisioning/dashboards
         livenessProbe:
           httpGet:
@@ -66,9 +66,9 @@ spec:
       - name: grafana-datasources
         configMap:
           name: grafana-datasources
-      - name: grafana-dashboards
+      - name: nginx-dashboard
         configMap:
-          name: grafana-dashboards
+          name: nginx-dashboard
 
 ---
 apiVersion: v1
