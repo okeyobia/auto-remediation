@@ -140,6 +140,17 @@ This includes:
 uv run pytest
 ```
 
+Run with coverage report:
+```bash
+uv run pytest --cov=webhook --cov-report=html
+```
+
+The test suite includes:
+- **Endpoint tests**: Verify `/alert` endpoint functionality with firing/resolved alerts
+- **Error handling**: Test error scenarios like container not found, invalid JSON
+- **Multiple alerts**: Test handling of multiple alerts in a single request
+- **Method validation**: Ensure only POST requests are allowed
+
 ### Code Formatting
 
 ```bash
