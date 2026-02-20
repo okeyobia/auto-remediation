@@ -1,0 +1,44 @@
+apiVersion: skaffold/v4beta6
+kind: Config
+metadata:
+  name: aiops
+
+build:
+  artifacts:
+    - image: aiops-webhook
+      docker:
+        dockerfile: webhook/Dockerfile
+        
+deploy:
+  kubectl:
+    manifests:
+      - kube/01-namespace.yaml
+      - kube/02-configmaps.yaml
+      - kube/03-secrets.yaml
+      - kube/04-pvcs.yaml
+      - kube/05-rbac.yaml
+      - kube/06-nginx.yaml
+      - kube/07-nginx-exporter.yaml
+      - kube/08-prometheus.yaml
+      - kube/09-alertmanager.yaml
+      - kube/10-grafana.yaml
+      - kube/11-webhook.yaml
+      - kube/12-ingress.yaml
+
+portForward:
+  - resourceType: deployment
+    resourceName: grafana
+    port: 3000
+    localPort: 3000
+  - resourceType: deployment
+    resourceName: prometheus
+    port: 9090
+    localPort: 9090
+  - resourceType: deployment
+    resourceName: alertmanager
+    port: 9093
+    localPort: 9093
+  - resourceType: deployment
+    resourceName: webhook
+    port: 5000
+    localPort: 5000

@@ -1,0 +1,139 @@
+# Default values for aiops Helm chart
+
+namespace: aiops
+
+# Nginx configuration
+nginx:
+  replicas: 2
+  image: nginx:alpine
+  port: 80
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+# Nginx Prometheus Exporter
+nginxExporter:
+  replicas: 1
+  image: nginx/nginx-prometheus-exporter:latest
+  port: 9113
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+# Prometheus configuration
+prometheus:
+  replicas: 1
+  image: prom/prometheus:latest
+  port: 9090
+  retention: 30d
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  storage:
+    size: 10Gi
+    storageClass: standard
+
+# AlertManager configuration
+alertmanager:
+  replicas: 1
+  image: prom/alertmanager:latest
+  port: 9093
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# Grafana configuration
+grafana:
+  replicas: 1
+  image: grafana/grafana:latest
+  port: 3000
+  adminUser: admin
+  adminPassword: admin
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  storage:
+    size: 5Gi
+    storageClass: standard
+
+# Webhook configuration
+webhook:
+  replicas: 2
+  image: aiops-webhook:latest
+  imagePullPolicy: IfNotPresent
+  port: 5000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# Slack integration
+slack:
+  enabled: false
+  webhookUrl: ""  # Set to your Slack webhook URL
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: grafana.aiops.local
+      paths:
+        - path: /
+          service: grafana
+          port: 3000
+    - host: prometheus.aiops.local
+      paths:
+        - path: /
+          service: prometheus
+          port: 9090
+    - host: alertmanager.aiops.local
+      paths:
+        - path: /
+          service: alertmanager
+          port: 9093
+  tls: []
+  # - secretName: aiops-tls
+  #   hosts:
+  #     - grafana.aiops.local
+  #     - prometheus.aiops.local
+  #     - alertmanager.aiops.local
+
+# Alert rules
+alertRules:
+  - name: nginx_alerts
+    rules:
+      - alert: NginxDown
+        expr: nginx_up == 0
+        for: 30s
+        severity: critical
+        description: "Nginx service is down"
+
+# Global settings
+global:
+  scrapeInterval: 15s
+  evaluationInterval: 15s

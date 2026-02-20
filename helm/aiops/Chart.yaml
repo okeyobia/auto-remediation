@@ -1,0 +1,29 @@
+apiVersion: v2
+name: aiops
+description: AIOps auto-remediation system with monitoring, alerting, and Slack integration
+type: application
+
+# Chart version (increment on each release)
+version: 1.0.0
+
+# Application version
+appVersion: "1.0.0"
+
+# Chart metadata
+keywords:
+  - monitoring
+  - alerting
+  - remediation
+  - prometheus
+  - grafana
+
+home: https://github.com/your-org/aiops-auto-rem
+sources:
+  - https://github.com/your-org/aiops-auto-rem
+
+maintainers:
+  - name: Your Name
+    email: your-email@example.com
+
+# Chart dependencies (add as needed)
+dependencies: []

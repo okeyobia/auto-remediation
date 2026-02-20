@@ -57,6 +57,7 @@ This project implements an automated incident response platform that:
 ├── prometheus.yml                # Prometheus scrape configuration
 ├── alert_rules.yml               # Deprecated: kept for reference (Prometheus alerts)
 ├── alertmanager.yml              # Deprecated: AlertManager config (no longer used)
+├── skaffold.yaml                 # Skaffold config for K8s development
 ├── grafana/
 │   └── provisioning/
 │       ├── datasources/
@@ -69,12 +70,32 @@ This project implements an automated incident response platform that:
 │           ├── alert-rules.json  # Nginx alert rule definition
 │           ├── contact-points.yml # Webhook notification receiver
 │           └── notification-policy.yml # Alert routing policy
+├── kube/                         # Kubernetes manifests & docs
+│   ├── README.md                 # Kubernetes deployment guide
+│   ├── 01-namespace.yaml
+│   ├── 02-configmaps.yaml
+│   ├── 03-secrets.yaml
+│   ├── 04-pvcs.yaml
+│   ├── 05-rbac.yaml
+│   ├── 06-nginx.yaml
+│   ├── 07-nginx-exporter.yaml
+│   ├── 08-prometheus.yaml
+│   ├── 09-alertmanager.yaml
+│   ├── 10-grafana.yaml
+│   ├── 11-webhook.yaml
+│   └── 12-ingress.yaml
+├── helm/                         # Helm chart for K8s deployment
+│   └── aiops/
+│       ├── Chart.yaml
+│       ├── values.yaml
+│       └── README.md
 ├── nginx/
 │   ├── Dockerfile                # Custom Nginx with stub_status enabled
 │   └── nginx.conf                # Nginx configuration
 └── webhook/
     ├── app.py                    # Flask webhook receiver and remediation logic
     ├── slack.py                  # Slack notification handler
+    ├── k8s.py                    # Kubernetes API client for pod restarts
     └── Dockerfile                # Webhook service container image
 ```
 
@@ -438,6 +459,83 @@ Check webhook service health and configuration status.
 ```
 
 Use this endpoint to verify the webhook is running and confirm if Slack integration is enabled.
+
+## ☸️ Kubernetes Deployment
+
+Deploy AIOps to Kubernetes for production environments with high availability, auto-scaling, and cloud-native architecture.
+
+### Quick Start with kubectl
+
+```bash
+# 1. Build webhook container
+docker build -t aiops-webhook:latest ./webhook
+
+# 2. Apply all Kubernetes manifests
+kubectl apply -f kube/
+
+# 3. Verify deployment
+kubectl get pods -n aiops
+```
+
+### Configuration
+
+**Set Slack webhook (optional):**
+```bash
+kubectl create secret generic slack-credentials \
+  --from-literal=webhook-url="https://hooks.slack.com/services/YOUR/WEBHOOK/URL" \
+  -n aiops --dry-run=client -o yaml | kubectl apply -f -
+```
+
+**Access services via port forwarding:**
+```bash
+kubectl port-forward -n aiops svc/grafana 3000:3000
+kubectl port-forward -n aiops svc/prometheus 9090:9090
+```
+
+### Using Helm (Recommended)
+
+Deploy using Helm for easier management:
+
+```bash
+# 1. Build webhook container
+docker build -t aiops-webhook:latest ./webhook
+
+# 2. Install Helm chart
+helm install aiops helm/aiops -n aiops --create-namespace \
+  --set webhook.image=aiops-webhook:latest
+
+# 3. Verify installation
+helm status aiops -n aiops
+```
+
+**Upgrade configurations:**
+```bash
+helm upgrade aiops helm/aiops -n aiops \
+  --set slack.enabled=true \
+  --set slack.webhookUrl="https://hooks.slack.com/services/..."
+```
+
+See [kube/README.md](kube/README.md) and [helm/aiops/README.md](helm/aiops/README.md) for comprehensive Kubernetes deployment documentation.
+
+### Key Features
+
+- **High Availability:** Multi-replica deployments with PodDisruptionBudgets
+- **Persistent Storage:** Grafana and Prometheus data persistence
+- **Auto-Remediation:** Webhook triggers Kubernetes API for pod restarts
+- **Service Mesh Ready:** No sidecar injection required
+- **RBAC Enabled:** Minimal permissions via ServiceAccount and Role
+- **Ingress Support:** Built-in ingress configuration for external access
+
+### Architecture
+
+Kubernetes deployment uses:
+- **Deployments** for stateless services (Nginx, exporters, AlertManager, webhook)
+- **StatefulSets** (optional) for stateful services if needed
+- **Services** for internal communication
+- **PersistentVolumeClaims** for Prometheus and Grafana data
+- **ConfigMaps** for configuration
+- **Secrets** for sensitive data (Slack webhook)
+- **RBAC** for webhook Kubernetes API access
 
 ## 🛠️ Troubleshooting
 

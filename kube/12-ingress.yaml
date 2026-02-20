@@ -1,0 +1,60 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aiops
+  namespace: aiops
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod  # Optional: if using cert-manager
+spec:
+  rules:
+  - host: grafana.aiops.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: grafana
+            port:
+              number: 3000
+  - host: prometheus.aiops.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: prometheus
+            port:
+              number: 9090
+  - host: alertmanager.aiops.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: alertmanager
+            port:
+              number: 9093
+  - host: nginx.aiops.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx
+            port:
+              number: 80
+
+  # TLS configuration (optional - requires cert-manager)
+  # tls:
+  # - hosts:
+  #   - grafana.aiops.local
+  #   - prometheus.aiops.local
+  #   - alertmanager.aiops.local
+  #   - nginx.aiops.local
+  #   secretName: aiops-tls
