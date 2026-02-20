@@ -74,6 +74,7 @@ This project implements an automated incident response platform that:
 │   └── nginx.conf                # Nginx configuration
 └── webhook/
     ├── app.py                    # Flask webhook receiver and remediation logic
+    ├── slack.py                  # Slack notification handler
     └── Dockerfile                # Webhook service container image
 ```
 
@@ -90,12 +91,18 @@ This project implements an automated incident response platform that:
    cd aiops-auto-rem
    ```
 
-2. **Start all services:**
+2. **(Optional) Configure Slack integration:**
+   ```bash
+   export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+   ```
+   See [Slack Setup](#slack-setup) section below for instructions.
+
+3. **Start all services:**
    ```bash
    docker-compose up -d
    ```
 
-3. **Verify services are running:**
+4. **Verify services are running:**
    ```bash
    docker-compose ps
    ```
@@ -416,6 +423,22 @@ Receives alert notifications from AlertManager.
 }
 ```
 
+### Health Check Endpoint
+
+**GET** `/health`
+
+Check webhook service health and configuration status.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "slack_enabled": true
+}
+```
+
+Use this endpoint to verify the webhook is running and confirm if Slack integration is enabled.
+
 ## 🛠️ Troubleshooting
 
 ### Nginx not auto-restarting?
@@ -453,7 +476,110 @@ docker-compose exec prometheus curl http://alertmanager:9093
 docker-compose exec alertmanager curl http://webhook:5000/alert
 ```
 
-## 📝 Extending the System
+## � Slack Setup
+
+### Enable Slack Notifications
+
+The webhook supports sending alert notifications to Slack. To enable it:
+
+1. **Create a Slack Webhook URL:**
+   - Go to https://api.slack.com/apps
+   - Create a new app or select an existing one
+   - Enable Incoming Webhooks
+   - Create a new webhook for your desired channel
+   - Copy the webhook URL
+
+2. **Set the webhook URL:**
+   ```bash
+   export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+   ```
+
+3. **Restart the webhook service:**
+   ```bash
+   docker-compose restart webhook
+   ```
+
+4. **Verify Slack is enabled:**
+   ```bash
+   curl http://localhost:5000/health | jq '.slack_enabled'
+   ```
+
+### Slack Messages
+
+The system sends three types of Slack messages:
+
+1. **Alert Firing:** 🚨 When an alert condition is triggered
+   - Shows alert name and timestamp
+   - Includes color coding (red for firing, green for resolved)
+
+2. **Remediation Success:** ✓ When a container is successfully restarted
+   - Shows the action taken
+   - Includes container name and alert details
+   - Blue color indicates success
+
+3. **Remediation Failure:** ✗ When container restart fails
+   - Shows the error message
+   - Help with troubleshooting
+   - Orange color indicates failure
+
+### Example Slack Alert
+
+When Nginx goes down, you'll receive messages like:
+- **Alert:** 🚨 FIRING: NginxDown
+- **Action:** 🔧 Remediation: ✓ Success - Container restarted
+
+#### Firing Alert Webhook Payload
+
+```json
+{
+  "text": "🚨 FIRING: nginx_down",
+  "attachments": [{
+    "color": "#FF0000",
+    "fields": [
+      {"title": "Alert", "value": "nginx_down", "short": true},
+      {"title": "Status", "value": "firing", "short": true},
+      {"title": "Container", "value": "nginx_app", "short": false},
+      {"title": "Timestamp", "value": "2024-01-15 14:23:45 UTC", "short": false}
+    ]
+  }]
+}
+```
+
+#### Remediation Success Webhook Payload
+
+```json
+{
+  "text": "✓ Remediation: Success",
+  "attachments": [{
+    "color": "#0099FF",
+    "fields": [
+      {"title": "Action", "value": "nginx_down remediation executed successfully", "short": false},
+      {"title": "Container", "value": "nginx_app", "short": true},
+      {"title": "Alert", "value": "nginx_down", "short": true},
+      {"title": "Timestamp", "value": "2024-01-15 14:24:05 UTC", "short": false}
+    ]
+  }]
+}
+```
+
+#### Resolved Alert Webhook Payload
+
+```json
+{
+  "text": "✅ RESOLVED: nginx_down",
+  "attachments": [{
+    "color": "#00FF00",
+    "fields": [
+      {"title": "Alert", "value": "nginx_down", "short": true},
+      {"title": "Status", "value": "resolved", "short": true},
+      {"title": "Container", "value": "nginx_app", "short": false},
+      {"title": "Timestamp", "value": "2024-01-15 14:25:30 UTC", "short": false}
+    ]
+  }]
+}
+```
+
+## �📝 Extending the System
 
 ### Add new alert rules:
 Edit `alert_rules.yml` and add new conditions to monitor:

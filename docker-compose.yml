@@ -54,6 +54,8 @@ services:
     container_name: remediation_webhook
     ports:
       - "5000:5000"
+    environment:
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 
