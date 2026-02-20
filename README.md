@@ -55,6 +55,13 @@ This project implements an automated incident response platform that:
 ├── prometheus.yml                # Prometheus scrape and alert config
 ├── alertmanager.yml              # AlertManager routing config
 ├── alert_rules.yml               # Alert rules definitions
+├── grafana/
+│   └── provisioning/
+│       ├── datasources/
+│       │   └── prometheus.yml    # Grafana datasource configuration
+│       └── dashboards/
+│           ├── dashboards.yml    # Dashboard provisioning config
+│           └── nginx-monitoring.json  # Nginx monitoring dashboard
 ├── nginx/
 │   ├── Dockerfile                # Custom Nginx with stub_status enabled
 │   └── nginx.conf                # Nginx configuration
@@ -94,6 +101,7 @@ This project implements an automated incident response platform that:
 | Nginx Exporter | http://localhost:9113/metrics | Prometheus metrics endpoint |
 | Prometheus | http://localhost:9090 | Monitoring UI & metrics queries |
 | AlertManager | http://localhost:9093 | Alert management UI |
+| Grafana | http://localhost:3000 | Visualization & dashboards |
 | Webhook | http://localhost:5000/alert | Alert receiver endpoint |
 
 ## 🔧 Running with `uv` (Local Development)
@@ -247,6 +255,22 @@ webhook_configs:
   - url: 'http://remediation_webhook:5000/alert'
 ```
 
+### Grafana (`grafana/provisioning/`)
+
+Auto-configured Grafana instance with:
+- **Datasource**: Prometheus is automatically added as the default datasource
+- **Dashboard**: Pre-built "Nginx Monitoring" dashboard showing:
+  - Nginx status (UP/DOWN)
+  - Total HTTP requests
+  - Active connections (reading, writing, waiting)
+  - Request rate (5-minute average)
+
+**Login Credentials:**
+- Username: `admin`
+- Password: `admin`
+
+**Access the dashboard at:** http://localhost:3000
+
 ### Prometheus (`prometheus.yml`)
 
 Configures metrics scraping and alert routing to AlertManager:
@@ -261,7 +285,7 @@ Receives alerts and triggers automated remediation:
 - Receives POST requests at `/alert` endpoint
 - Restarts `nginx_app` container when firing alerts are received
 
-## � Dependencies
+## 📦 Dependencies
 
 ### Python Dependencies
 
@@ -281,16 +305,30 @@ Install all dev dependencies with `uv`:
 uv sync --extra dev
 ```
 
-## �📊 How It Works
+## 📊 How It Works
 
 1. **Metrics Collection**: Nginx Exporter exposes nginx metrics
 2. **Evaluation**: Prometheus scrapes metrics and evaluates alert rules every 15 seconds
 3. **Alert Triggering**: Prometheus fires an alert if Nginx is down for 30 seconds
 4. **Notification**: AlertManager routes the alert to the webhook endpoint
 5. **Remediation**: Webhook service automatically restarts the Nginx container
-6. **Resolution**: When Nginx recovers, a resolved notification is sent
+6. **Visualization**: Grafana displays real-time metrics and alerts on dashboards
+7. **Resolution**: When Nginx recovers, a resolved notification is sent
 
 ## 🧪 Testing
+
+### View Grafana Dashboard
+
+1. **Access Grafana:**
+   - Open http://localhost:3000
+   - Login with `admin` / `admin`
+   - Navigate to **Dashboards** > **Nginx Monitoring**
+
+2. **Dashboard displays:**
+   - Nginx operational status (UP/DOWN gauge)
+   - Total HTTP requests over time
+   - Active connections (reading, writing, waiting)
+   - Request rate (5-minute moving average)
 
 ### Manually trigger an alert:
 
