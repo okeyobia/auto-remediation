@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 import docker
 import os
-from slack import SlackNotifier
+from webhook.slack import SlackNotifier
 
 app = Flask(__name__)
 client = docker.from_env()
