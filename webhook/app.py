@@ -1,10 +1,30 @@
 from flask import Flask, request, jsonify
-import docker
 import os
-from webhook.slack import SlackNotifier
+import logging
+from slack import SlackNotifier
+from k8s import KubernetesRemediator
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-client = docker.from_env()
+
+# Try to initialize Docker client (for Docker Compose environments)
+try:
+    import docker
+    docker_client = docker.from_env()
+    docker_available = True
+    logger.info("✓ Docker client initialized")
+except Exception as e:
+    docker_client = None
+    docker_available = False
+    logger.info(f"ℹ Docker not available: {e}")
+
+# Initialize Kubernetes remediator
+k8s_remediator = KubernetesRemediator()
+
+# Initialize Slack notifier
 slack_notifier = SlackNotifier()
 
 
@@ -23,24 +43,22 @@ def alert():
             if alert_status == "firing":
                 slack_notifier.send_alert(alert_name, alert_status)
                 
-                container_name = "nginx_app"
-                try:
-                    container = client.containers.get(container_name)
-                    container.restart()
-                    print(f"Restarted {container_name} due to Grafana alert: {alert_name}")
-                    
-                    # Send remediation success notification
-                    slack_notifier.send_remediation_message(alert_name, container_name, success=True)
-                except Exception as e:
-                    print(f"Error restarting container: {e}")
-                    
-                    # Send remediation failure notification
-                    slack_notifier.send_remediation_message(alert_name, container_name, success=False)
+                # Trigger remediation based on available platform
+                success, message = trigger_remediation(alert_name)
+                
+                # Send remediation notification
+                slack_notifier.send_remediation_message(
+                    alert_name, 
+                    "nginx_app", 
+                    success=success
+                )
+                
+                logger.info(f"{'✓' if success else '✗'} {message}")
             
             # Send Slack notification for alert resolved
             elif alert_status == "resolved":
                 slack_notifier.send_alert(alert_name, alert_status)
-                print(f"Alert resolved: {alert_name}")
+                logger.info(f"Alert resolved: {alert_name}")
     
     # Handle Prometheus alert manager format (legacy)
     elif "alerts" in data:
@@ -51,29 +69,60 @@ def alert():
                 # Send Slack notification
                 slack_notifier.send_alert(alert_name, "firing")
                 
-                container_name = "nginx_app"
-                try:
-                    container = client.containers.get(container_name)
-                    container.restart()
-                    print(f"Restarted {container_name}")
-                    
-                    # Send remediation success notification
-                    slack_notifier.send_remediation_message(alert_name, container_name, success=True)
-                except Exception as e:
-                    print(f"Error restarting container: {e}")
-                    
-                    # Send remediation failure notification
-                    slack_notifier.send_remediation_message(alert_name, container_name, success=False)
+                # Trigger remediation
+                success, message = trigger_remediation(alert_name)
+                
+                # Send remediation notification
+                slack_notifier.send_remediation_message(
+                    alert_name, 
+                    "nginx_app", 
+                    success=success
+                )
+                
+                logger.info(f"{'✓' if success else '✗'} {message}")
 
     return jsonify({"status": "processed"})
+
+
+def trigger_remediation(alert_name):
+    """Trigger remediation based on alert name.
+    
+    Returns: (success: bool, message: str)
+    """
+    if alert_name == "NginxDown":
+        # Try Kubernetes first, fall back to Docker
+        if k8s_remediator.enabled:
+            success, message = k8s_remediator.trigger_deployment_restart("nginx")
+            return success, message
+        elif docker_available:
+            try:
+                container = docker_client.containers.get("nginx_app")
+                container.restart()
+                return True, f"Restarted container nginx_app"
+            except Exception as e:
+                return False, f"Error restarting container: {e}"
+        else:
+            return False, "No remediation platform available (no Docker socket, no K8s API)"
+    
+    return False, f"Unknown alert: {alert_name}"
 
 
 @app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint."""
-    return jsonify({"status": "healthy", "slack_enabled": slack_notifier.enabled})
+    return jsonify({
+        "status": "healthy",
+        "slack_enabled": slack_notifier.enabled,
+        "docker_available": docker_available,
+        "kubernetes_available": k8s_remediator.enabled
+    })
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    logger.info("Starting AIOps webhook service")
+    logger.info(f"Docker: {'✓ Available' if docker_available else '✗ Not available'}")
+    logger.info(f"Kubernetes: {'✓ Available' if k8s_remediator.enabled else '✗ Not available'}")
+    logger.info(f"Slack: {'✓ Enabled' if slack_notifier.enabled else '✗ Disabled'}")
+    app.run(host="0.0.0.0", port=5000, debug=False)
+
 
