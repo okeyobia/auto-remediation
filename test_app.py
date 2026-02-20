@@ -21,7 +21,7 @@ class TestWebhookAlertEndpoint:
             "alerts": [
                 {
                     "status": "firing",
-                    "labels": {"severity": "critical"},
+                    "labels": {"severity": "critical", "alertname": "NginxDown"},
                     "annotations": {"description": "Nginx container is down"}
                 }
             ]

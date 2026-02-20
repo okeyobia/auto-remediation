@@ -1,0 +1,82 @@
+{
+  "groups": [
+    {
+      "name": "nginx_alerts",
+      "interval": "1m",
+      "folder": "Alerts",
+      "rules": [
+        {
+          "uid": "nginx-down-alert",
+          "title": "Nginx Down",
+          "condition": "C",
+          "data": [
+            {
+              "refId": "A",
+              "queryType": "",
+              "relativeTimeRange": {
+                "from": 600,
+                "to": 0
+              },
+              "datasourceUid": "prometheus",
+              "model": {
+                "expr": "nginx_up",
+                "intervalFactor": 1,
+                "refId": "A"
+              }
+            },
+            {
+              "refId": "C",
+              "queryType": "",
+              "datasourceUid": "-100",
+              "model": {
+                "conditions": [
+                  {
+                    "evaluator": {
+                      "params": [
+                        0
+                      ],
+                      "type": "lt"
+                    },
+                    "operator": {
+                      "type": "and"
+                    },
+                    "query": {
+                      "params": [
+                        "A"
+                      ]
+                    },
+                    "reducer": {
+                      "params": [],
+                      "type": "avg"
+                    },
+                    "type": "query"
+                  }
+                ],
+                "datasource": {
+                  "type": "__expr__",
+                  "uid": "-100"
+                },
+                "hide": false,
+                "intervalMs": 1000,
+                "maxDataPoints": 43200,
+                "reducer": "avg",
+                "type": "threshold"
+              }
+            }
+          ],
+          "noDataState": "NoData",
+          "execErrState": "Alerting",
+          "for": "30s",
+          "annotations": {
+            "description": "Nginx server is down or not responding",
+            "summary": "Nginx Down"
+          },
+          "labels": {
+            "severity": "critical"
+          }
+        }
+      ]
+    }
+  ]
+}
+

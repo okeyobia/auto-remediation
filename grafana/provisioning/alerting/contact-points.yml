@@ -1,0 +1,11 @@
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: webhook
+    receivers:
+      - uid: webhook_receiver
+        type: webhook
+        settings:
+          url: http://remediation_webhook:5000/alert
+          httpMethod: POST

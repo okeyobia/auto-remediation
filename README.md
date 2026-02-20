@@ -26,19 +26,21 @@ This project implements an automated incident response platform that:
 │  ┌─────────────────────────────────────────────────────┐ │
 │  │           Prometheus (Port 9090)                    │ │
 │  │   - Scrapes metrics from Nginx Exporter            │ │
-│  │   - Evaluates alert rules                          │ │
+│  │   - Stores time-series data                        │ │
 │  └─────────────────────────────────────────────────────┘ │
 │                               ▲                           │
-│                               │ Alerts                    │
+│                               │ Metrics Query             │
 │  ┌─────────────────────────────────────────────────────┐ │
-│  │        AlertManager (Port 9093)                     │ │
-│  │   - Routes firing alerts to webhook receiver       │ │
+│  │        Grafana (Port 3000)                          │ │
+│  │   - Queries Prometheus for metrics                 │ │
+│  │   - Evaluates alert rules                          │ │
+│  │   - Sends firing alerts to webhook                 │ │
 │  └─────────────────────────────────────────────────────┘ │
 │                               ▲                           │
 │                               │ HTTP POST                 │
 │  ┌─────────────────────────────────────────────────────┐ │
 │  │   Remediation Webhook (Port 5000)                   │ │
-│  │   - Receives alert notifications                   │ │
+│  │   - Receives alert notifications from Grafana      │ │
 │  │   - Automatically restarts Nginx container         │ │
 │  └─────────────────────────────────────────────────────┘ │
 │                                                            │
@@ -52,16 +54,21 @@ This project implements an automated incident response platform that:
 ├── README.md                     # This file
 ├── pyproject.toml                # Python project configuration (uv)
 ├── docker-compose.yml            # Docker Compose configuration
-├── prometheus.yml                # Prometheus scrape and alert config
-├── alertmanager.yml              # AlertManager routing config
-├── alert_rules.yml               # Alert rules definitions
+├── prometheus.yml                # Prometheus scrape configuration
+├── alert_rules.yml               # Deprecated: kept for reference (Prometheus alerts)
+├── alertmanager.yml              # Deprecated: AlertManager config (no longer used)
 ├── grafana/
 │   └── provisioning/
 │       ├── datasources/
 │       │   └── prometheus.yml    # Grafana datasource configuration
-│       └── dashboards/
-│           ├── dashboards.yml    # Dashboard provisioning config
-│           └── nginx-monitoring.json  # Nginx monitoring dashboard
+│       ├── dashboards/
+│       │   ├── dashboards.yml    # Dashboard provisioning config
+│       │   └── nginx-monitoring.json  # Nginx monitoring dashboard
+│       └── alerting/
+│           ├── alerts.yml        # Grafana alert rules provisioning config
+│           ├── alert-rules.json  # Nginx alert rule definition
+│           ├── contact-points.yml # Webhook notification receiver
+│           └── notification-policy.yml # Alert routing policy
 ├── nginx/
 │   ├── Dockerfile                # Custom Nginx with stub_status enabled
 │   └── nginx.conf                # Nginx configuration
@@ -99,10 +106,11 @@ This project implements an automated incident response platform that:
 |---------|-----|---------|
 | Nginx App | http://localhost:8080 | Application being monitored |
 | Nginx Exporter | http://localhost:9113/metrics | Prometheus metrics endpoint |
-| Prometheus | http://localhost:9090 | Monitoring UI & metrics queries |
-| AlertManager | http://localhost:9093 | Alert management UI |
-| Grafana | http://localhost:3000 | Visualization & dashboards |
+| Prometheus | http://localhost:9090 | Metrics storage & queries |
+| Grafana | http://localhost:3000 | Monitoring, dashboards, & alerting |
 | Webhook | http://localhost:5000/alert | Alert receiver endpoint |
+
+**Note:** AlertManager (port 9093) is deprecated and no longer used in this architecture.
 
 ## 🔧 Running with `uv` (Local Development)
 
@@ -233,6 +241,17 @@ Custom Nginx configuration with `stub_status` module enabled to expose metrics:
 - Required for Nginx Prometheus Exporter to collect metrics
 - Listens on port 80 with standard HTTP serving
 
+### Grafana Alerting (`grafana/provisioning/alerting/`)
+
+Grafana unified alerting configured with:
+- **Alert Rules** (`alert-rules.json`): Defines alert conditions (e.g., nginx_up == 0 for 30s)
+- **Contact Points** (`contact-points.yml`): Webhook receiver pointing to `http://remediation_webhook:5000/alert`
+- **Notification Policy** (`notification-policy.yml`): Routes alerts to the webhook receiver
+
+**Alert Rule:** Fires when `nginx_up == 0` for 30+ seconds, then sends notification to webhook
+
+**Login to Grafana:** http://localhost:3000 (admin/admin) to manage alerts
+
 ### Alert Rules (`alert_rules.yml`)
 
 Defines monitoring thresholds. Default rule:
@@ -308,12 +327,15 @@ uv sync --extra dev
 ## 📊 How It Works
 
 1. **Metrics Collection**: Nginx Exporter exposes nginx metrics
-2. **Evaluation**: Prometheus scrapes metrics and evaluates alert rules every 15 seconds
-3. **Alert Triggering**: Prometheus fires an alert if Nginx is down for 30 seconds
-4. **Notification**: AlertManager routes the alert to the webhook endpoint
-5. **Remediation**: Webhook service automatically restarts the Nginx container
-6. **Visualization**: Grafana displays real-time metrics and alerts on dashboards
-7. **Resolution**: When Nginx recovers, a resolved notification is sent
+2. **Scraping**: Prometheus scrapes metrics every 15 seconds from Nginx Exporter
+3. **Storage**: Prometheus stores time-series data
+4. **Querying**: Grafana queries Prometheus for real-time metrics
+5. **Alert Evaluation**: Grafana evaluates alert rules (e.g., nginx_up == 0 for 30s)
+6. **Alert Firing**: When condition is met, Grafana fires an alert
+7. **Notification**: Grafana sends alert via webhook to remediation endpoint
+8. **Remediation**: Webhook service automatically restarts the Nginx container
+9. **Visualization**: Grafana dashboard displays metrics and alert status
+10. **Resolution**: When Nginx recovers (nginx_up == 1), alert resolves
 
 ## 🧪 Testing
 
