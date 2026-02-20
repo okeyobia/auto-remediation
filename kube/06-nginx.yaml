@@ -30,7 +30,7 @@ spec:
           mountPath: /usr/share/nginx/html
         livenessProbe:
           httpGet:
-            path: /
+            path: /stub_status
             port: 80
           initialDelaySeconds: 10
           periodSeconds: 10
@@ -38,7 +38,7 @@ spec:
           failureThreshold: 3
         readinessProbe:
           httpGet:
-            path: /
+            path: /stub_status
             port: 80
           initialDelaySeconds: 5
           periodSeconds: 5
